@@ -16,7 +16,16 @@ const {
   updateMenu,
   deleteMenu
 } = require('../controllers/menuController');
+const {
+  getArticles,
+  getArticle,
+  createArticle,
+  updateArticle,
+  deleteArticle,
+  updateArticleStatus
+} = require('../controllers/articleController');
 const { protect } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 // Public
 router.post('/login', login);
@@ -35,5 +44,13 @@ router.get('/menus/:id', protect, getMenu);
 router.post('/menus', protect, createMenu);
 router.put('/menus/:id', protect, updateMenu);
 router.delete('/menus/:id', protect, deleteMenu);
+
+// Makale işlemleri
+router.get('/articles', protect, getArticles);
+router.get('/articles/:id', protect, getArticle);
+router.post('/articles', protect, upload.single('image'), createArticle);
+router.put('/articles/:id', protect, upload.single('image'), updateArticle);
+router.delete('/articles/:id', protect, deleteArticle);
+router.patch('/articles/:id/status', protect, updateArticleStatus);
 
 module.exports = router;

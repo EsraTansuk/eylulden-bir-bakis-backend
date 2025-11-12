@@ -12,6 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Static dosyalar (resimler için)
+app.use('/uploads', express.static('uploads'));
+
 // Rotalar
 app.use('/api/admin', require('./routes/adminRoutes'));
 
