@@ -9,6 +9,13 @@ const {
   updateCategory,
   deleteCategory
 } = require('../controllers/categoryController');
+const {
+  getMenus,
+  getMenu,
+  createMenu,
+  updateMenu,
+  deleteMenu
+} = require('../controllers/menuController');
 const { protect } = require('../middleware/auth');
 
 // Public
@@ -21,5 +28,12 @@ router.get('/categories/:id', protect, getCategory);
 router.post('/categories', protect, createCategory);
 router.put('/categories/:id', protect, updateCategory);
 router.delete('/categories/:id', protect, deleteCategory);
+
+// Menü işlemleri
+router.get('/menus', protect, getMenus);
+router.get('/menus/:id', protect, getMenu);
+router.post('/menus', protect, createMenu);
+router.put('/menus/:id', protect, updateMenu);
+router.delete('/menus/:id', protect, deleteMenu);
 
 module.exports = router;
