@@ -4,7 +4,8 @@ const router = express.Router();
 const {
   getPublicArticles,
   getPublicArticle,
-  getArticlesByCategory
+  getArticlesByCategory,
+  getArticlesByCategorySlug
 } = require('../controllers/articleController');
 const {
   getPublicMenus
@@ -18,6 +19,11 @@ const {
 router.get('/articles/category/:categoryId', getArticlesByCategory);
 router.get('/articles', getPublicArticles);
 router.get('/articles/:slugOrId', getPublicArticle);
+
+// Public kategori endpoint'leri (slug bazlı)
+// ÖNEMLİ: Daha spesifik route'lar önce gelmeli (parent/child)
+router.get('/categories/:parentSlug/:childSlug', getArticlesByCategorySlug);
+router.get('/categories/:slug', getArticlesByCategorySlug);
 
 // Public menü endpoint'leri (JWT gerekmez)
 router.get('/menus', getPublicMenus);

@@ -13,7 +13,7 @@ const articleSchema = new mongoose.Schema({
   },
   image: {
     type: String,
-    default: ''
+    default: null
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,

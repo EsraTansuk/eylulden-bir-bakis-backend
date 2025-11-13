@@ -1,51 +1,54 @@
 // controllers/menuController.js
-const Menu = require('../models/Menu');
+const Category = require('../models/Category');
 
-// @desc    Tüm menüleri getir (hiyerarşik yapı ile)
+// @desc    Tüm menüleri getir (kategori tabanlı hiyerarşik yapı ile)
 // @route   GET /api/admin/menus
 // @access  Private (JWT)
 const getMenus = async (req, res) => {
   try {
-    const allMenus = await Menu.find()
-      .populate('parentMenu', 'name _id')
-      .sort({ order: 1, createdAt: -1 });
+    // Tüm kategorileri getir (menü özellikleri ile)
+    const allCategories = await Category.find()
+      .populate('parentCategory', 'name _id')
+      .sort({ menuOrder: 1, createdAt: -1 });
     
-    // Ana menüler ve alt menüleri ayır
-    const mainMenus = allMenus.filter(menu => !menu.parentMenu);
-    const subMenus = allMenus.filter(menu => menu.parentMenu);
+    // Ana kategoriler ve alt kategorileri ayır
+    const mainCategories = allCategories.filter(cat => !cat.parentCategory);
+    const subCategories = allCategories.filter(cat => cat.parentCategory);
     
-    // Hiyerarşik yapı oluştur - ana menülere alt menülerini ekle
-    const hierarchicalMenus = mainMenus.map(mainMenu => {
-      const children = subMenus
-        .filter(subMenu => 
-          subMenu.parentMenu && 
-          subMenu.parentMenu._id.toString() === mainMenu._id.toString()
+    // Hiyerarşik yapı oluştur - tüm kategoriler menü olarak gösterilir
+    const hierarchicalMenus = mainCategories.map(mainCat => {
+      const children = subCategories
+        .filter(subCat => 
+          subCat.parentCategory && 
+          subCat.parentCategory._id.toString() === mainCat._id.toString()
         )
-        .map(subMenu => ({
-          _id: subMenu._id,
-          name: subMenu.name,
-          link: subMenu.link,
-          icon: subMenu.icon,
-          order: subMenu.order,
-          isActive: subMenu.isActive,
-          target: subMenu.target,
-          parentMenu: subMenu.parentMenu,
-          createdAt: subMenu.createdAt,
-          updatedAt: subMenu.updatedAt
+        .map(subCat => ({
+          _id: subCat._id,
+          name: subCat.name,
+          parentCategory: subCat.parentCategory,
+          likes: subCat.likes || 0,
+          link: subCat.link || '',
+          icon: subCat.icon || '',
+          menuOrder: subCat.menuOrder || 0,
+          isActiveInMenu: subCat.isActiveInMenu !== undefined ? subCat.isActiveInMenu : true,
+          menuTarget: subCat.menuTarget || '_self',
+          createdAt: subCat.createdAt,
+          updatedAt: subCat.updatedAt
         }));
       
       return {
-        _id: mainMenu._id,
-        name: mainMenu.name,
-        link: mainMenu.link,
-        icon: mainMenu.icon,
-        order: mainMenu.order,
-        isActive: mainMenu.isActive,
-        target: mainMenu.target,
-        parentMenu: null,
-        subMenus: children,
-        createdAt: mainMenu.createdAt,
-        updatedAt: mainMenu.updatedAt
+        _id: mainCat._id,
+        name: mainCat.name,
+        parentCategory: null,
+        likes: mainCat.likes || 0,
+        link: mainCat.link || '',
+        icon: mainCat.icon || '',
+        menuOrder: mainCat.menuOrder || 0,
+        isActiveInMenu: mainCat.isActiveInMenu !== undefined ? mainCat.isActiveInMenu : true,
+        menuTarget: mainCat.menuTarget || '_self',
+        subCategories: children,
+        createdAt: mainCat.createdAt,
+        updatedAt: mainCat.updatedAt
       };
     });
     
@@ -55,272 +58,251 @@ const getMenus = async (req, res) => {
   }
 };
 
-// @desc    Tek menü getir
+// @desc    Tek menü getir (kategori ID'si ile)
 // @route   GET /api/admin/menus/:id
 // @access  Private
 const getMenu = async (req, res) => {
   try {
-    const menu = await Menu.findById(req.params.id)
-      .populate('parentMenu', 'name _id');
+    const category = await Category.findById(req.params.id)
+      .populate({
+        path: 'parentCategory',
+        select: 'name _id'
+      });
     
-    if (!menu) {
-      return res.status(404).json({ message: 'Menü bulunamadı' });
+    if (!category) {
+      return res.status(404).json({ message: 'Kategori/Menü bulunamadı' });
     }
     
-    // Eğer ana menü ise, alt menülerini de getir
-    if (!menu.parentMenu) {
-      const subMenus = await Menu.find({ 
-        parentMenu: menu._id 
-      }).sort({ order: 1 });
+    // Eğer ana kategori ise, alt kategorilerini de getir
+    if (!category.parentCategory) {
+      const subCategories = await Category.find({ 
+        parentCategory: category._id 
+      })
+      .select('_id name parentCategory likes link icon menuOrder isActiveInMenu menuTarget createdAt updatedAt')
+      .sort({ menuOrder: 1 });
+      
       return res.json({
-        ...menu.toObject(),
-        subMenus
+        ...category.toObject(),
+        subCategories
       });
     }
     
-    res.json(menu);
+    res.json(category);
   } catch (err) {
     if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Geçersiz menü ID' });
+      return res.status(400).json({ message: 'Geçersiz kategori/menü ID' });
     }
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Yeni menü ekle (ana menü veya alt menü)
-// @route   POST /api/admin/menus
-// @access  Private
-const createMenu = async (req, res) => {
-  try {
-    const { name, link, icon, order, isActive, target, parentMenu } = req.body;
-    
-    // Validasyon
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: 'Menü adı gerekli' });
-    }
-    
-    if (!link || !link.trim()) {
-      return res.status(400).json({ message: 'Menü linki gerekli' });
-    }
-    
-    // Eğer parentMenu belirtilmişse, var olup olmadığını kontrol et
-    if (parentMenu) {
-      const parentExists = await Menu.findById(parentMenu);
-      if (!parentExists) {
-        return res.status(400).json({ message: 'Üst menü bulunamadı' });
-      }
-      
-      // Alt menü, başka bir alt menünün altına eklenemez
-      if (parentExists.parentMenu) {
-        return res.status(400).json({ 
-          message: 'Alt menü, başka bir alt menünün altına eklenemez' 
-        });
-      }
-    }
-    
-    const menu = await Menu.create({ 
-      name: name.trim(),
-      link: link.trim(),
-      icon: icon || '',
-      order: order || 0,
-      isActive: isActive !== undefined ? isActive : true,
-      target: target || '_self',
-      parentMenu: parentMenu || null
-    });
-    
-    // Populate ile döndür
-    await menu.populate('parentMenu', 'name');
-    
-    res.status(201).json(menu);
-  } catch (err) {
-    // Duplicate key hatası (aynı isimde menü)
-    if (err.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Bu isimde bir menü zaten mevcut' 
-      });
-    }
-    res.status(400).json({ message: err.message });
-  }
-};
-
-// @desc    Menü güncelle
+// @desc    Menü güncelle (kategori menü özelliklerini güncelle)
 // @route   PUT /api/admin/menus/:id
 // @access  Private
 const updateMenu = async (req, res) => {
   try {
-    const { name, link, icon, order, isActive, target, parentMenu } = req.body;
-    const menu = await Menu.findById(req.params.id);
+    const { icon, menuOrder, isActiveInMenu, menuTarget } = req.body;
+    const category = await Category.findById(req.params.id);
     
-    if (!menu) {
-      return res.status(404).json({ message: 'Menü bulunamadı' });
+    if (!category) {
+      return res.status(404).json({ message: 'Kategori/Menü bulunamadı' });
     }
     
-    // Validasyon ve güncelleme
-    if (name !== undefined) {
-      if (!name || !name.trim()) {
-        return res.status(400).json({ message: 'Menü adı boş olamaz' });
-      }
-      menu.name = name.trim();
-    }
-    
-    if (link !== undefined) {
-      if (!link || !link.trim()) {
-        return res.status(400).json({ message: 'Menü linki boş olamaz' });
-      }
-      menu.link = link.trim();
-    }
-    
+    // Menü özelliklerini güncelle
     if (icon !== undefined) {
-      menu.icon = icon.trim();
+      category.icon = icon.trim();
     }
     
-    if (order !== undefined) {
-      menu.order = order;
+    if (menuOrder !== undefined) {
+      category.menuOrder = menuOrder;
     }
     
-    if (isActive !== undefined) {
-      menu.isActive = isActive;
+    if (isActiveInMenu !== undefined) {
+      category.isActiveInMenu = isActiveInMenu;
     }
     
-    if (target !== undefined) {
-      if (!['_self', '_blank'].includes(target)) {
+    if (menuTarget !== undefined) {
+      if (!['_self', '_blank'].includes(menuTarget)) {
         return res.status(400).json({ 
-          message: 'Target değeri _self veya _blank olmalıdır' 
+          message: 'MenuTarget değeri _self veya _blank olmalıdır' 
         });
       }
-      menu.target = target;
+      category.menuTarget = menuTarget;
     }
     
-    // parentMenu güncelleme
-    if (parentMenu !== undefined) {
-      // null ise ana menü yap
-      if (parentMenu === null) {
-        menu.parentMenu = null;
+    // Önce slug'ı oluştur (name değiştiyse)
+    await category.save();
+    
+    // Her zaman slug bazlı link oluştur (otomatik)
+    if (category.slug) {
+      if (category.parentCategory) {
+        const parent = await Category.findById(category.parentCategory);
+        if (parent && parent.slug) {
+          category.link = `/api/categories/${parent.slug}/${category.slug}`;
+        } else {
+          category.link = `/api/articles/category/${category._id}`;
+        }
       } else {
-        // Üst menü var mı kontrol et
-        const parentExists = await Menu.findById(parentMenu);
-        if (!parentExists) {
-          return res.status(400).json({ message: 'Üst menü bulunamadı' });
-        }
-        
-        // Alt menü, başka bir alt menünün altına eklenemez
-        if (parentExists.parentMenu) {
-          return res.status(400).json({ 
-            message: 'Alt menü, başka bir alt menünün altına eklenemez' 
-          });
-        }
-        
-        // Kendi altına eklenemez
-        if (parentMenu === req.params.id) {
-          return res.status(400).json({ 
-            message: 'Menü kendi altına eklenemez' 
-          });
-        }
-        
-        // Alt menüleri varsa, ana menü yapılamaz
-        const hasSubMenus = await Menu.findOne({ 
-          parentMenu: menu._id 
-        });
-        if (hasSubMenus && parentMenu !== null) {
-          return res.status(400).json({ 
-            message: 'Alt menüleri olan bir menü, başka bir menünün altına eklenemez' 
-          });
-        }
-        
-        menu.parentMenu = parentMenu;
+        category.link = `/api/categories/${category.slug}`;
       }
+    } else {
+      category.link = `/api/articles/category/${category._id}`;
     }
+    await category.save();
+    await category.populate({
+      path: 'parentCategory',
+      select: 'name _id'
+    });
     
-    await menu.save();
-    await menu.populate('parentMenu', 'name');
-    
-    res.json(menu);
+    res.json(category);
   } catch (err) {
     if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Geçersiz menü ID' });
-    }
-    if (err.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Bu isimde bir menü zaten mevcut' 
-      });
+      return res.status(400).json({ message: 'Geçersiz kategori/menü ID' });
     }
     res.status(400).json({ message: err.message });
   }
 };
 
-// @desc    Menü sil
+// @desc    Menü sil (kategorinin menü özelliklerini sıfırla)
 // @route   DELETE /api/admin/menus/:id
 // @access  Private
 const deleteMenu = async (req, res) => {
   try {
-    const menu = await Menu.findById(req.params.id);
+    const category = await Category.findById(req.params.id);
     
-    if (!menu) {
-      return res.status(404).json({ message: 'Menü bulunamadı' });
+    if (!category) {
+      return res.status(404).json({ message: 'Kategori/Menü bulunamadı' });
     }
     
-    // Alt menüleri var mı kontrol et
-    const subMenus = await Menu.find({ 
-      parentMenu: menu._id 
-    });
+    // Menü özelliklerini sıfırla (kategoriyi silme)
+    category.link = '';
+    category.icon = '';
+    category.menuOrder = 0;
+    category.isActiveInMenu = true;
+    category.menuTarget = '_self';
     
-    if (subMenus.length > 0) {
-      return res.status(400).json({ 
-        message: 'Alt menüleri olan bir menü silinemez. Önce alt menüleri silin.' 
-      });
-    }
-    
-    await Menu.findByIdAndDelete(req.params.id);
+    await category.save();
     
     res.json({ 
-      message: 'Menü başarıyla silindi',
-      deletedMenu: menu 
+      message: 'Menü özellikleri sıfırlandı (kategori korundu)',
+      category 
     });
   } catch (err) {
     if (err.name === 'CastError') {
-      return res.status(400).json({ message: 'Geçersiz menü ID' });
+      return res.status(400).json({ message: 'Geçersiz kategori/menü ID' });
     }
     res.status(500).json({ message: err.message });
   }
 };
 
-// @desc    Public - Aktif menüleri getir (hiyerarşik yapı ile)
+// @desc    Public - Aktif menüleri getir (kategori tabanlı hiyerarşik yapı ile)
 // @route   GET /api/menus
 // @access  Public
 const getPublicMenus = async (req, res) => {
   try {
-    // Sadece aktif menüleri getir
-    const allMenus = await Menu.find({ isActive: true })
-      .populate('parentMenu', 'name _id')
-      .sort({ order: 1, createdAt: -1 });
+    // Sadece menüde aktif olan kategorileri getir
+    const allCategories = await Category.find({ isActiveInMenu: true })
+      .populate('parentCategory', 'name _id')
+      .sort({ menuOrder: 1, createdAt: -1 });
     
-    // Ana menüler ve alt menüleri ayır
-    const mainMenus = allMenus.filter(menu => !menu.parentMenu);
-    const subMenus = allMenus.filter(menu => menu.parentMenu);
+    // Ana kategoriler ve alt kategorileri ayır
+    const mainCategories = allCategories.filter(cat => !cat.parentCategory);
+    const subCategories = allCategories.filter(cat => cat.parentCategory);
     
     // Hiyerarşik yapı oluştur - ana menülere alt menülerini ekle
-    const hierarchicalMenus = mainMenus.map(mainMenu => {
-      const children = subMenus
-        .filter(subMenu => 
-          subMenu.parentMenu && 
-          subMenu.parentMenu._id.toString() === mainMenu._id.toString()
+    const hierarchicalMenus = mainCategories.map(mainCat => {
+      const children = subCategories
+        .filter(subCat => 
+          subCat.parentCategory && 
+          subCat.parentCategory._id.toString() === mainCat._id.toString()
         )
-        .map(subMenu => ({
-          _id: subMenu._id,
-          name: subMenu.name,
-          link: subMenu.link,
-          icon: subMenu.icon,
-          order: subMenu.order,
-          target: subMenu.target
-        }));
+        .map(subCat => {
+          // Alt kategori için slug oluştur (yoksa)
+          let subSlug = subCat.slug;
+          if (!subSlug && subCat.name) {
+            subSlug = subCat.name
+              .toLowerCase()
+              .replace(/ğ/g, 'g')
+              .replace(/ü/g, 'u')
+              .replace(/ş/g, 's')
+              .replace(/ı/g, 'i')
+              .replace(/ö/g, 'o')
+              .replace(/ç/g, 'c')
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '');
+          }
+          
+          // Ana kategori için slug oluştur (yoksa)
+          let mainSlug = mainCat.slug;
+          if (!mainSlug && mainCat.name) {
+            mainSlug = mainCat.name
+              .toLowerCase()
+              .replace(/ğ/g, 'g')
+              .replace(/ü/g, 'u')
+              .replace(/ş/g, 's')
+              .replace(/ı/g, 'i')
+              .replace(/ö/g, 'o')
+              .replace(/ç/g, 'c')
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '');
+          }
+          
+          // Alt kategori için link oluştur (slug bazlı - öncelik slug)
+          let subLink = subCat.link;
+          // Eğer link `/api/` ile başlamıyorsa veya boşsa, slug bazlı oluştur
+          if (!subLink || !subLink.trim() || !subLink.startsWith('/api/')) {
+            if (subSlug && mainSlug) {
+              subLink = `/api/categories/${mainSlug}/${subSlug}`;
+            } else {
+              subLink = `/api/articles/category/${subCat._id}`;
+            }
+          }
+          
+          return {
+            _id: subCat._id,
+            name: subCat.name,
+            slug: subSlug || null,
+            link: subLink,
+            icon: subCat.icon || '',
+            menuOrder: subCat.menuOrder || 0,
+            menuTarget: subCat.menuTarget || '_self'
+          };
+        });
+      
+      // Ana kategori için slug oluştur (yoksa)
+      let mainSlug = mainCat.slug;
+      if (!mainSlug && mainCat.name) {
+        mainSlug = mainCat.name
+          .toLowerCase()
+          .replace(/ğ/g, 'g')
+          .replace(/ü/g, 'u')
+          .replace(/ş/g, 's')
+          .replace(/ı/g, 'i')
+          .replace(/ö/g, 'o')
+          .replace(/ç/g, 'c')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      }
+      
+      // Ana kategori için link oluştur (slug bazlı - öncelik slug)
+      let mainLink = mainCat.link;
+      // Eğer link `/api/` ile başlamıyorsa veya boşsa, slug bazlı oluştur
+      if (!mainLink || !mainLink.trim() || !mainLink.startsWith('/api/')) {
+        if (mainSlug) {
+          mainLink = `/api/categories/${mainSlug}`;
+        } else {
+          mainLink = `/api/articles/category/${mainCat._id}`;
+        }
+      }
       
       return {
-        _id: mainMenu._id,
-        name: mainMenu.name,
-        link: mainMenu.link,
-        icon: mainMenu.icon,
-        order: mainMenu.order,
-        target: mainMenu.target,
+        _id: mainCat._id,
+        name: mainCat.name,
+        slug: mainSlug || null,
+        link: mainLink,
+        icon: mainCat.icon || '',
+        menuOrder: mainCat.menuOrder || 0,
+        menuTarget: mainCat.menuTarget || '_self',
         subMenus: children
       };
     });
@@ -334,9 +316,7 @@ const getPublicMenus = async (req, res) => {
 module.exports = { 
   getMenus, 
   getMenu,
-  createMenu, 
   updateMenu,
   deleteMenu,
   getPublicMenus
 };
-

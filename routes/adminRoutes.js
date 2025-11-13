@@ -9,12 +9,12 @@ const {
   updateCategory,
   deleteCategory,
   likeCategory,
-  unlikeCategory
+  unlikeCategory,
+  generateSlugsForAllCategories
 } = require('../controllers/categoryController');
 const {
   getMenus,
   getMenu,
-  createMenu,
   updateMenu,
   deleteMenu
 } = require('../controllers/menuController');
@@ -31,6 +31,9 @@ const {
   updateContact,
   deleteContact
 } = require('../controllers/contactController');
+const {
+  getDashboardStats
+} = require('../controllers/dashboardController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -38,8 +41,12 @@ const upload = require('../middleware/upload');
 router.post('/login', login);
 
 // Protected (JWT gerekli)
+// Dashboard
+router.get('/dashboard', protect, getDashboardStats);
 // Kategori işlemleri
 router.get('/categories', protect, getCategories);
+// ÖNEMLİ: Daha spesifik route'lar önce gelmeli
+router.post('/categories/generate-slugs', protect, generateSlugsForAllCategories);
 router.get('/categories/:id', protect, getCategory);
 router.post('/categories', protect, createCategory);
 router.put('/categories/:id', protect, updateCategory);
@@ -47,10 +54,9 @@ router.delete('/categories/:id', protect, deleteCategory);
 router.post('/categories/:id/like', protect, likeCategory);
 router.post('/categories/:id/unlike', protect, unlikeCategory);
 
-// Menü işlemleri
+// Menü işlemleri (kategori tabanlı)
 router.get('/menus', protect, getMenus);
 router.get('/menus/:id', protect, getMenu);
-router.post('/menus', protect, createMenu);
 router.put('/menus/:id', protect, updateMenu);
 router.delete('/menus/:id', protect, deleteMenu);
 
