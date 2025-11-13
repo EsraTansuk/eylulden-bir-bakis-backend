@@ -26,7 +26,7 @@ const articleSchema = new mongoose.Schema({
     required: true
   },
   socialMediaLinks: [{
-    platform: {
+    icon: {
       type: String,
       required: true,
       trim: true

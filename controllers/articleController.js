@@ -93,9 +93,9 @@ const createArticle = async (req, res) => {
     if (socialMediaLinks) {
       if (Array.isArray(socialMediaLinks)) {
         processedLinks = socialMediaLinks
-          .filter(link => link && link.platform && link.url)
+          .filter(link => link && link.icon && link.url)
           .map(link => ({
-            platform: link.platform.trim(),
+            icon: link.icon.trim(),
             url: link.url.trim()
           }));
       } else if (typeof socialMediaLinks === 'string') {
@@ -104,9 +104,9 @@ const createArticle = async (req, res) => {
           const parsed = JSON.parse(socialMediaLinks);
           if (Array.isArray(parsed)) {
             processedLinks = parsed
-              .filter(link => link && link.platform && link.url)
+              .filter(link => link && link.icon && link.url)
               .map(link => ({
-                platform: link.platform.trim(),
+                icon: link.icon.trim(),
                 url: link.url.trim()
               }));
           }
@@ -203,9 +203,9 @@ const updateArticle = async (req, res) => {
       let processedLinks = [];
       if (Array.isArray(socialMediaLinks)) {
         processedLinks = socialMediaLinks
-          .filter(link => link && link.platform && link.url)
+          .filter(link => link && link.icon && link.url)
           .map(link => ({
-            platform: link.platform.trim(),
+            icon: link.icon.trim(),
             url: link.url.trim()
           }));
       } else if (typeof socialMediaLinks === 'string') {
@@ -214,9 +214,9 @@ const updateArticle = async (req, res) => {
           const parsed = JSON.parse(socialMediaLinks);
           if (Array.isArray(parsed)) {
             processedLinks = parsed
-              .filter(link => link && link.platform && link.url)
+              .filter(link => link && link.icon && link.url)
               .map(link => ({
-                platform: link.platform.trim(),
+                icon: link.icon.trim(),
                 url: link.url.trim()
               }));
           }

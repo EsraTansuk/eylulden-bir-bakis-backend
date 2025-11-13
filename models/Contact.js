@@ -19,7 +19,7 @@ const contactSchema = new mongoose.Schema({
     lowercase: true
   },
   socialMediaLinks: [{
-    platform: {
+    icon: {
       type: String,
       required: true,
       trim: true
