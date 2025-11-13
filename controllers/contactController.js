@@ -135,9 +135,39 @@ const deleteContact = async (req, res) => {
   }
 };
 
+// @desc    Public - İletişim bilgilerini getir
+// @route   GET /api/contact
+// @access  Public
+const getPublicContact = async (req, res) => {
+  try {
+    // Tek bir contact kaydı olmalı, yoksa boş obje döndür
+    let contact = await Contact.findOne();
+    
+    if (!contact) {
+      // Yoksa boş bir obje döndür
+      return res.json({
+        address: '',
+        phone: '',
+        email: '',
+        socialMediaLinks: [],
+        mapCoordinates: {
+          latitude: null,
+          longitude: null
+        },
+        workingHours: ''
+      });
+    }
+    
+    res.json(contact);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = { 
   getContact,
   updateContact,
-  deleteContact
+  deleteContact,
+  getPublicContact
 };
 
