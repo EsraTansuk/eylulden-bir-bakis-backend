@@ -25,11 +25,18 @@ const articleSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  socialMediaLink: {
-    type: String,
-    default: '',
-    trim: true
-  },
+  socialMediaLinks: [{
+    platform: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    url: {
+      type: String,
+      required: true,
+      trim: true
+    }
+  }],
   status: {
     type: String,
     enum: ['draft', 'published'],

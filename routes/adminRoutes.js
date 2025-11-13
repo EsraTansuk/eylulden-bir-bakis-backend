@@ -7,7 +7,9 @@ const {
   getCategory,
   createCategory, 
   updateCategory,
-  deleteCategory
+  deleteCategory,
+  likeCategory,
+  unlikeCategory
 } = require('../controllers/categoryController');
 const {
   getMenus,
@@ -37,6 +39,8 @@ router.get('/categories/:id', protect, getCategory);
 router.post('/categories', protect, createCategory);
 router.put('/categories/:id', protect, updateCategory);
 router.delete('/categories/:id', protect, deleteCategory);
+router.post('/categories/:id/like', protect, likeCategory);
+router.post('/categories/:id/unlike', protect, unlikeCategory);
 
 // Menü işlemleri
 router.get('/menus', protect, getMenus);

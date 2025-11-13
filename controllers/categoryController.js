@@ -25,6 +25,7 @@ const getCategories = async (req, res) => {
           _id: subCat._id,
           name: subCat.name,
           parentCategory: subCat.parentCategory,
+          likes: subCat.likes || 0,
           createdAt: subCat.createdAt,
           updatedAt: subCat.updatedAt
         }));
@@ -33,6 +34,7 @@ const getCategories = async (req, res) => {
         _id: mainCat._id,
         name: mainCat.name,
         parentCategory: null,
+        likes: mainCat.likes || 0,
         subCategories: children,
         createdAt: mainCat.createdAt,
         updatedAt: mainCat.updatedAt
@@ -103,11 +105,11 @@ const getCategory = async (req, res) => {
       return res.status(404).json({ message: 'Kategori bulunamadı' });
     }
     
-    // Eğer alt kategori ise, alt kategorilerini de getir
+    // Eğer ana kategori ise, alt kategorilerini de getir
     if (!category.parentCategory) {
       const subCategories = await Category.find({ 
         parentCategory: category._id 
-      });
+      }).select('_id name parentCategory likes createdAt updatedAt');
       return res.json({
         ...category.toObject(),
         subCategories
@@ -236,10 +238,66 @@ const deleteCategory = async (req, res) => {
   }
 };
 
+// @desc    Kategori beğen
+// @route   POST /api/admin/categories/:id/like
+// @access  Private
+const likeCategory = async (req, res) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    
+    if (!category) {
+      return res.status(404).json({ message: 'Kategori bulunamadı' });
+    }
+    
+    category.likes = (category.likes || 0) + 1;
+    await category.save();
+    
+    res.json({
+      message: 'Kategori beğenildi',
+      likes: category.likes,
+      category
+    });
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Geçersiz kategori ID' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Kategori beğenisini kaldır
+// @route   POST /api/admin/categories/:id/unlike
+// @access  Private
+const unlikeCategory = async (req, res) => {
+  try {
+    const category = await Category.findById(req.params.id);
+    
+    if (!category) {
+      return res.status(404).json({ message: 'Kategori bulunamadı' });
+    }
+    
+    category.likes = Math.max(0, (category.likes || 0) - 1);
+    await category.save();
+    
+    res.json({
+      message: 'Kategori beğenisi kaldırıldı',
+      likes: category.likes,
+      category
+    });
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Geçersiz kategori ID' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = { 
   getCategories, 
   getCategory,
   createCategory, 
   updateCategory,
-  deleteCategory
+  deleteCategory,
+  likeCategory,
+  unlikeCategory
 };

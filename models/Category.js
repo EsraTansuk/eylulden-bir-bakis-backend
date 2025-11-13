@@ -11,6 +11,10 @@ const categorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
     default: null // null ise ana kategori, dolu ise alt kategori
+  },
+  likes: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true });
 

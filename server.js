@@ -17,6 +17,7 @@ app.use('/uploads', express.static('uploads'));
 
 // Rotalar
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api', require('./routes/publicRoutes'));
 
 // Ana yol
 app.get('/', (req, res) => {
