@@ -133,20 +133,20 @@ const updateMenu = async (req, res) => {
     // Önce slug'ı oluştur (name değiştiyse)
     await category.save();
     
-    // Her zaman slug bazlı link oluştur (otomatik)
+    // Her zaman slug bazlı link oluştur (sadece slug, /api/categories prefix'i yok)
     if (category.slug) {
       if (category.parentCategory) {
         const parent = await Category.findById(category.parentCategory);
         if (parent && parent.slug) {
-          category.link = `/api/categories/${parent.slug}/${category.slug}`;
+          category.link = `/${parent.slug}/${category.slug}`;
         } else {
-          category.link = `/api/articles/category/${category._id}`;
+          category.link = `/${category.slug}`;
         }
       } else {
-        category.link = `/api/categories/${category.slug}`;
+        category.link = `/${category.slug}`;
       }
     } else {
-      category.link = `/api/articles/category/${category._id}`;
+      category.link = `/${category._id}`;
     }
     await category.save();
     await category.populate({
@@ -247,14 +247,16 @@ const getPublicMenus = async (req, res) => {
               .replace(/(^-|-$)/g, '');
           }
           
-          // Alt kategori için link oluştur (slug bazlı - öncelik slug)
+          // Alt kategori için link oluştur (slug bazlı - sadece slug)
           let subLink = subCat.link;
-          // Eğer link `/api/` ile başlamıyorsa veya boşsa, slug bazlı oluştur
-          if (!subLink || !subLink.trim() || !subLink.startsWith('/api/')) {
+          // Eğer link boşsa veya `/api/` ile başlıyorsa, slug bazlı oluştur
+          if (!subLink || !subLink.trim() || subLink.startsWith('/api/')) {
             if (subSlug && mainSlug) {
-              subLink = `/api/categories/${mainSlug}/${subSlug}`;
+              subLink = `/${mainSlug}/${subSlug}`;
+            } else if (subSlug) {
+              subLink = `/${subSlug}`;
             } else {
-              subLink = `/api/articles/category/${subCat._id}`;
+              subLink = `/${subCat._id}`;
             }
           }
           
@@ -284,14 +286,14 @@ const getPublicMenus = async (req, res) => {
           .replace(/(^-|-$)/g, '');
       }
       
-      // Ana kategori için link oluştur (slug bazlı - öncelik slug)
+      // Ana kategori için link oluştur (slug bazlı - sadece slug)
       let mainLink = mainCat.link;
-      // Eğer link `/api/` ile başlamıyorsa veya boşsa, slug bazlı oluştur
-      if (!mainLink || !mainLink.trim() || !mainLink.startsWith('/api/')) {
+      // Eğer link boşsa veya `/api/` ile başlıyorsa, slug bazlı oluştur
+      if (!mainLink || !mainLink.trim() || mainLink.startsWith('/api/')) {
         if (mainSlug) {
-          mainLink = `/api/categories/${mainSlug}`;
+          mainLink = `/${mainSlug}`;
         } else {
-          mainLink = `/api/articles/category/${mainCat._id}`;
+          mainLink = `/${mainCat._id}`;
         }
       }
       

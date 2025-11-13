@@ -126,20 +126,20 @@ const createCategory = async (req, res) => {
     // Slug oluşturulduktan sonra link'i otomatik oluştur
     await category.save(); // Slug'ı oluşturmak için save
 
-    // Her zaman slug bazlı link oluştur
+    // Her zaman slug bazlı link oluştur (sadece slug, /api/categories prefix'i yok)
     if (category.slug) {
       if (category.parentCategory) {
         const parent = await Category.findById(category.parentCategory);
         if (parent && parent.slug) {
-          category.link = `/api/categories/${parent.slug}/${category.slug}`;
+          category.link = `/${parent.slug}/${category.slug}`;
         } else {
-          category.link = `/api/articles/category/${category._id}`;
+          category.link = `/${category.slug}`;
         }
       } else {
-        category.link = `/api/categories/${category.slug}`;
+        category.link = `/${category.slug}`;
       }
     } else {
-      category.link = `/api/articles/category/${category._id}`;
+      category.link = `/${category._id}`;
     }
     await category.save();
 
@@ -284,20 +284,20 @@ const updateCategory = async (req, res) => {
     // Önce slug'ı oluştur (name değiştiyse)
     await category.save();
 
-    // Her zaman slug bazlı link oluştur (otomatik)
+    // Her zaman slug bazlı link oluştur (sadece slug, /api/categories prefix'i yok)
     if (category.slug) {
       if (category.parentCategory) {
         const parent = await Category.findById(category.parentCategory);
         if (parent && parent.slug) {
-          category.link = `/api/categories/${parent.slug}/${category.slug}`;
+          category.link = `/${parent.slug}/${category.slug}`;
         } else {
-          category.link = `/api/articles/category/${category._id}`;
+          category.link = `/${category.slug}`;
         }
       } else {
-        category.link = `/api/categories/${category.slug}`;
+        category.link = `/${category.slug}`;
       }
     } else {
-      category.link = `/api/articles/category/${category._id}`;
+      category.link = `/${category._id}`;
     }
     await category.save();
 
@@ -430,13 +430,13 @@ const generateSlugsForAllCategories = async (req, res) => {
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/(^-|-$)/g, "");
 
-        // Eğer link `/api/` ile başlamıyorsa, slug bazlı oluştur
+        // Eğer link boşsa veya `/api/` ile başlıyorsa, slug bazlı oluştur
         if (
           !category.link ||
           !category.link.trim() ||
-          !category.link.startsWith("/api/")
+          category.link.startsWith("/api/")
         ) {
-          category.link = `/api/categories/${category.slug}`;
+          category.link = `/${category.slug}`;
         }
 
         await category.save();
@@ -462,17 +462,19 @@ const generateSlugsForAllCategories = async (req, res) => {
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/(^-|-$)/g, "");
 
-        // Eğer link `/api/` ile başlamıyorsa, slug bazlı oluştur
+        // Eğer link boşsa veya `/api/` ile başlıyorsa, slug bazlı oluştur
         if (
           !category.link ||
           !category.link.trim() ||
-          !category.link.startsWith("/api/")
+          category.link.startsWith("/api/")
         ) {
           const parent = await Category.findById(category.parentCategory);
           if (parent && parent.slug) {
-            category.link = `/api/categories/${parent.slug}/${category.slug}`;
+            category.link = `/${parent.slug}/${category.slug}`;
+          } else if (category.slug) {
+            category.link = `/${category.slug}`;
           } else {
-            category.link = `/api/articles/category/${category._id}`;
+            category.link = `/${category._id}`;
           }
         }
 

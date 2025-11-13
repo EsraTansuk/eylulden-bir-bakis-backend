@@ -597,11 +597,14 @@ const getArticlesByCategorySlug = async (req, res) => {
 
     let category;
 
-    // Eğer childSlug varsa, name alanında childSlug ile ara
+    // Eğer childSlug varsa, link alanında childSlug ile ara
     if (childSlug && parentSlug) {
-      // childSlug değerini name olarak kullanarak kategoriyi bul
+      // childSlug ile link'te arama yap (format: /parentSlug/childSlug veya /childSlug)
       category = await Category.findOne({
-        link: `/${childSlug}`,
+        $or: [
+          { link: `/${parentSlug}/${childSlug}` },
+          { link: `/${childSlug}` }
+        ]
       });
 
       if (!category) {
@@ -610,7 +613,7 @@ const getArticlesByCategorySlug = async (req, res) => {
 
       // Bulunan kategori ID'si ile makaleleri getireceğiz
     } else if (parentSlug && !childSlug) {
-      // Parent slug varsa ama child yoksa, parent slug ile kategoriyi bul
+      // Parent slug varsa ama child yoksa, link ile kategoriyi bul
       category = await Category.findOne({
         link: `/${parentSlug}`,
         parentCategory: null, // Ana kategori olduğundan emin ol
@@ -620,8 +623,13 @@ const getArticlesByCategorySlug = async (req, res) => {
         return res.status(404).json({ message: "Ana kategori bulunamadı" });
       }
     } else if (slug) {
-      // Sadece slug varsa, slug ile ara (ana veya alt kategori olabilir)
-      category = await Category.findOne({ slug: `/${slug}` });
+      // Sadece slug varsa, link veya slug ile ara (ana veya alt kategori olabilir)
+      category = await Category.findOne({ 
+        $or: [
+          { link: `/${slug}` },
+          { slug: slug }
+        ]
+      });
 
       if (!category) {
         return res.status(404).json({ message: "Kategori bulunamadı" });
