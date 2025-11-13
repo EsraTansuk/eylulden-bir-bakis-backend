@@ -26,6 +26,11 @@ const {
   deleteArticle,
   updateArticleStatus
 } = require('../controllers/articleController');
+const {
+  getContact,
+  updateContact,
+  deleteContact
+} = require('../controllers/contactController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -56,5 +61,10 @@ router.post('/articles', protect, upload.single('image'), createArticle);
 router.put('/articles/:id', protect, upload.single('image'), updateArticle);
 router.delete('/articles/:id', protect, deleteArticle);
 router.patch('/articles/:id/status', protect, updateArticleStatus);
+
+// İletişim bilgileri işlemleri
+router.get('/contact', protect, getContact);
+router.put('/contact', protect, updateContact);
+router.delete('/contact', protect, deleteContact);
 
 module.exports = router;
