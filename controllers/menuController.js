@@ -284,11 +284,59 @@ const deleteMenu = async (req, res) => {
   }
 };
 
+// @desc    Public - Aktif menüleri getir (hiyerarşik yapı ile)
+// @route   GET /api/menus
+// @access  Public
+const getPublicMenus = async (req, res) => {
+  try {
+    // Sadece aktif menüleri getir
+    const allMenus = await Menu.find({ isActive: true })
+      .populate('parentMenu', 'name _id')
+      .sort({ order: 1, createdAt: -1 });
+    
+    // Ana menüler ve alt menüleri ayır
+    const mainMenus = allMenus.filter(menu => !menu.parentMenu);
+    const subMenus = allMenus.filter(menu => menu.parentMenu);
+    
+    // Hiyerarşik yapı oluştur - ana menülere alt menülerini ekle
+    const hierarchicalMenus = mainMenus.map(mainMenu => {
+      const children = subMenus
+        .filter(subMenu => 
+          subMenu.parentMenu && 
+          subMenu.parentMenu._id.toString() === mainMenu._id.toString()
+        )
+        .map(subMenu => ({
+          _id: subMenu._id,
+          name: subMenu.name,
+          link: subMenu.link,
+          icon: subMenu.icon,
+          order: subMenu.order,
+          target: subMenu.target
+        }));
+      
+      return {
+        _id: mainMenu._id,
+        name: mainMenu.name,
+        link: mainMenu.link,
+        icon: mainMenu.icon,
+        order: mainMenu.order,
+        target: mainMenu.target,
+        subMenus: children
+      };
+    });
+    
+    res.json(hierarchicalMenus);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = { 
   getMenus, 
   getMenu,
   createMenu, 
   updateMenu,
-  deleteMenu
+  deleteMenu,
+  getPublicMenus
 };
 
