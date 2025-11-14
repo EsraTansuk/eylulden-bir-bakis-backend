@@ -32,6 +32,11 @@ const {
   deleteContact
 } = require('../controllers/contactController');
 const {
+  getAbout,
+  updateAbout,
+  deleteAbout
+} = require('../controllers/aboutController');
+const {
   getDashboardStats
 } = require('../controllers/dashboardController');
 const { protect } = require('../middleware/auth');
@@ -72,5 +77,10 @@ router.patch('/articles/:id/status', protect, updateArticleStatus);
 router.get('/contact', protect, getContact);
 router.put('/contact', protect, updateContact);
 router.delete('/contact', protect, deleteContact);
+
+// Hakkımda işlemleri
+router.get('/about', protect, getAbout);
+router.put('/about', protect, upload.single('photo'), updateAbout);
+router.delete('/about', protect, deleteAbout);
 
 module.exports = router;

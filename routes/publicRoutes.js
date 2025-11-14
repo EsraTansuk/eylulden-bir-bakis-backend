@@ -17,6 +17,9 @@ const {
 const {
   getPublicContact
 } = require('../controllers/contactController');
+const {
+  getPublicAbout
+} = require('../controllers/aboutController');
 
 // Public makale endpoint'leri (JWT gerekmez)
 // ÖNEMLİ: Daha spesifik route'lar önce gelmeli
@@ -39,6 +42,9 @@ router.get('/menus', getPublicMenus);
 
 // Public iletişim bilgileri endpoint'leri (JWT gerekmez)
 router.get('/contact', getPublicContact);
+
+// Public hakkımda endpoint'leri (JWT gerekmez)
+router.get('/about', getPublicAbout);
 
 module.exports = router;
 
