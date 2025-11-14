@@ -5,7 +5,10 @@ const {
   getPublicArticles,
   getPublicArticle,
   getArticlesByCategory,
-  getArticlesByCategorySlug
+  getArticlesByCategorySlug,
+  getPopularArticles,
+  likeArticle,
+  unlikeArticle
 } = require('../controllers/articleController');
 const {
   getPublicMenus
@@ -16,8 +19,12 @@ const {
 
 // Public makale endpoint'leri (JWT gerekmez)
 // ÖNEMLİ: Daha spesifik route'lar önce gelmeli
+router.get('/articles/popular', getPopularArticles);
 router.get('/articles/category/:categoryId', getArticlesByCategory);
 router.get('/articles', getPublicArticles);
+// ÖNEMLİ: Beğeni endpoint'leri slug'dan önce gelmeli
+router.post('/articles/:slugOrId/like', likeArticle);
+router.post('/articles/:slugOrId/unlike', unlikeArticle);
 router.get('/articles/:slugOrId', getPublicArticle);
 
 // Public kategori endpoint'leri (slug bazlı)

@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const Article = require("../models/Article");
 const Category = require("../models/Category");
+const ArticleLike = require("../models/ArticleLike");
 const fs = require("fs");
 const path = require("path");
 
@@ -326,6 +327,9 @@ const deleteArticle = async (req, res) => {
         fs.unlinkSync(imagePath);
       }
     }
+
+    // Makale ile ilgili beğeni kayıtlarını da sil
+    await ArticleLike.deleteMany({ article: req.params.id });
 
     await Article.findByIdAndDelete(req.params.id);
 
@@ -704,6 +708,218 @@ const getArticlesByCategorySlug = async (req, res) => {
   }
 };
 
+// @desc    Public - Makale beğen/beğenme (toggle - slug veya ID ile)
+// @route   POST /api/articles/:slugOrId/like
+// @access  Public
+const likeArticle = async (req, res) => {
+  try {
+    const { slugOrId } = req.params;
+    
+    // IP adresini al (trust proxy ayarı yapıldığı için req.ip kullanılabilir)
+    const ipAddress = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress || 'unknown';
+
+    // MongoDB ObjectId formatını kontrol et
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(slugOrId);
+
+    let article;
+    if (isValidObjectId) {
+      // Geçerli ObjectId ise hem ID hem slug ile ara
+      article = await Article.findOne({
+        $or: [{ _id: slugOrId }, { slug: slugOrId }],
+      });
+    } else {
+      // Geçersiz ObjectId ise sadece slug ile ara
+      article = await Article.findOne({ slug: slugOrId });
+    }
+
+    if (!article) {
+      return res.status(404).json({ message: "Makale bulunamadı" });
+    }
+
+    // Bu IP'den bu makale için daha önce beğeni yapılmış mı kontrol et
+    const existingLike = await ArticleLike.findOne({
+      article: article._id,
+      ipAddress: ipAddress
+    });
+
+    if (existingLike) {
+      // Zaten beğenilmişse, beğeniyi kaldır (toggle)
+      await ArticleLike.findByIdAndDelete(existingLike._id);
+      
+      // Beğeni sayısını azalt
+      article.likes = Math.max(0, (article.likes || 0) - 1);
+      await article.save();
+
+      return res.json({
+        message: "Makale beğenisi kaldırıldı",
+        likes: article.likes,
+        isLiked: false
+      });
+    }
+
+    // Beğeni kaydını oluştur
+    await ArticleLike.create({
+      article: article._id,
+      ipAddress: ipAddress
+    });
+
+    // Beğeni sayısını artır
+    article.likes = (article.likes || 0) + 1;
+    await article.save();
+
+    res.json({
+      message: "Makale beğenildi",
+      likes: article.likes,
+      isLiked: true
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      // Duplicate key hatası (aynı IP'den tekrar beğeni - race condition durumu)
+      // Bu durumda beğeniyi kaldırmayı dene
+      try {
+        const { slugOrId } = req.params;
+        const ipAddress = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress || 'unknown';
+        
+        const isValidObjectId = mongoose.Types.ObjectId.isValid(slugOrId);
+        let article;
+        if (isValidObjectId) {
+          article = await Article.findOne({
+            $or: [{ _id: slugOrId }, { slug: slugOrId }],
+          });
+        } else {
+          article = await Article.findOne({ slug: slugOrId });
+        }
+        
+        if (article) {
+          const existingLike = await ArticleLike.findOne({
+            article: article._id,
+            ipAddress: ipAddress
+          });
+          
+          if (existingLike) {
+            await ArticleLike.findByIdAndDelete(existingLike._id);
+            article.likes = Math.max(0, (article.likes || 0) - 1);
+            await article.save();
+            
+            return res.json({
+              message: "Makale beğenisi kaldırıldı",
+              likes: article.likes,
+              isLiked: false
+            });
+          }
+        }
+      } catch (retryErr) {
+        // Retry başarısız olursa hata döndür
+      }
+      
+      return res.status(400).json({ 
+        message: "Beğeni işlemi başarısız oldu, lütfen tekrar deneyin" 
+      });
+    }
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Geçersiz makale ID" });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Public - Makale beğenisini kaldır (slug veya ID ile)
+// @route   POST /api/articles/:slugOrId/unlike
+// @access  Public
+const unlikeArticle = async (req, res) => {
+  try {
+    const { slugOrId } = req.params;
+    
+    // IP adresini al (trust proxy ayarı yapıldığı için req.ip kullanılabilir)
+    const ipAddress = req.ip || req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.connection.remoteAddress || 'unknown';
+
+    // MongoDB ObjectId formatını kontrol et
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(slugOrId);
+
+    let article;
+    if (isValidObjectId) {
+      // Geçerli ObjectId ise hem ID hem slug ile ara
+      article = await Article.findOne({
+        $or: [{ _id: slugOrId }, { slug: slugOrId }],
+      });
+    } else {
+      // Geçersiz ObjectId ise sadece slug ile ara
+      article = await Article.findOne({ slug: slugOrId });
+    }
+
+    if (!article) {
+      return res.status(404).json({ message: "Makale bulunamadı" });
+    }
+
+    // Bu IP'den bu makale için beğeni kaydı var mı kontrol et
+    const existingLike = await ArticleLike.findOne({
+      article: article._id,
+      ipAddress: ipAddress
+    });
+
+    if (!existingLike) {
+      return res.status(400).json({ 
+        message: "Bu makaleyi beğenmediniz",
+        likes: article.likes 
+      });
+    }
+
+    // Beğeni kaydını sil
+    await ArticleLike.findByIdAndDelete(existingLike._id);
+
+    // Beğeni sayısını azalt
+    article.likes = Math.max(0, (article.likes || 0) - 1);
+    await article.save();
+
+    res.json({
+      message: "Makale beğenisi kaldırıldı",
+      likes: article.likes,
+    });
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Geçersiz makale ID" });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Public - Popüler makaleleri getir (ilk 5, beğeni sayısına göre)
+// @route   GET /api/articles/popular
+// @access  Public
+const getPopularArticles = async (req, res) => {
+  try {
+    const articles = await Article.find({ status: "published" })
+      .populate({
+        path: "category",
+        select: "name slug parentCategory",
+        populate: {
+          path: "parentCategory",
+          select: "name slug _id",
+        },
+      })
+      .populate("author", "name")
+      .select("title slug image category author views likes createdAt")
+      .sort({ likes: -1, views: -1, createdAt: -1 })
+      .limit(5);
+
+    // Boş string image'ı null'a çevir
+    const articlesWithNullImage = articles.map((article) => {
+      const articleObj = article.toObject();
+      if (articleObj.image === "" || !articleObj.image) {
+        articleObj.image = null;
+      }
+      return articleObj;
+    });
+
+    res.json({
+      articles: articlesWithNullImage,
+      total: articles.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getArticles,
   getArticle,
@@ -715,4 +931,7 @@ module.exports = {
   getPublicArticle,
   getArticlesByCategory,
   getArticlesByCategorySlug,
+  likeArticle,
+  unlikeArticle,
+  getPopularArticles,
 };

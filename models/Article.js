@@ -50,6 +50,10 @@ const articleSchema = new mongoose.Schema({
   views: {
     type: Number,
     default: 0
+  },
+  likes: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true });
 
@@ -75,6 +79,7 @@ articleSchema.index({ category: 1 });
 articleSchema.index({ author: 1 });
 articleSchema.index({ status: 1 });
 articleSchema.index({ createdAt: -1 });
+articleSchema.index({ likes: -1 }); // Popüler makaleler için
 
 module.exports = mongoose.model('Article', articleSchema);
 

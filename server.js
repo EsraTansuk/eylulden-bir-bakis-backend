@@ -8,6 +8,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy (IP adresini doğru almak için)
+app.set('trust proxy', true);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
