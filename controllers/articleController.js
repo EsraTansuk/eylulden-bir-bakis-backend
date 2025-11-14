@@ -938,6 +938,7 @@ const unlikeArticle = async (req, res) => {
 // @access  Public
 const getPopularArticles = async (req, res) => {
   try {
+    // Sadece yayınlanmış makaleler, en çok beğeni alan 5 tanesi
     const articles = await Article.find({ status: "published" })
       .populate({
         path: "category",
@@ -948,22 +949,39 @@ const getPopularArticles = async (req, res) => {
         },
       })
       .populate("author", "name")
-      .select("title slug image category author views likes createdAt")
-      .sort({ likes: -1, views: -1, createdAt: -1 })
+      .sort({ likes: -1, views: -1, createdAt: -1 }) // Önce beğeni, sonra görüntülenme, sonra tarih
       .limit(5);
 
-    // Boş string image'ı null'a çevir
-    const articlesWithNullImage = articles.map((article) => {
+    // İçeriğin ilk 200 karakterini al (özet için) ve diğer işlemler
+    const articlesWithExcerpt = articles.map((article) => {
       const articleObj = article.toObject();
+      
+      // İçerik özeti oluştur
+      if (articleObj.content) {
+        // HTML etiketlerini temizle ve ilk 200 karakteri al
+        const textContent = articleObj.content.replace(/<[^>]*>/g, "").trim();
+        articleObj.excerpt =
+          textContent.length > 200
+            ? textContent.substring(0, 200) + "..."
+            : textContent;
+      } else {
+        articleObj.excerpt = "";
+      }
+      
+      // Boş string image'ı null'a çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
       }
+      
+      // Tam içeriği kaldır (performans için)
+      delete articleObj.content;
+      
       return articleObj;
     });
 
     res.json({
-      articles: articlesWithNullImage,
-      total: articles.length,
+      articles: articlesWithExcerpt,
+      total: articlesWithExcerpt.length,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
