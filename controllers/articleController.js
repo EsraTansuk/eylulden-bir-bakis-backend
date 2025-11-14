@@ -454,6 +454,56 @@ const getPublicArticles = async (req, res) => {
   }
 };
 
+// @desc    Public - Son 4 makaleyi getir
+// @route   GET /api/articles/latest
+// @access  Public
+const getLatestArticles = async (req, res) => {
+  try {
+    // Sadece yayınlanmış makaleler, en yeni 4 tanesi
+    const articles = await Article.find({ status: "published" })
+      .populate({
+        path: "category",
+        select: "name parentCategory slug",
+        populate: {
+          path: "parentCategory",
+          select: "name _id slug",
+        },
+      })
+      .populate("author", "name")
+      .sort({ createdAt: -1 })
+      .limit(4);
+
+    // İçeriğin ilk 200 karakterini al (özet için)
+    const articlesWithExcerpt = articles.map((article) => {
+      const articleObj = article.toObject();
+      if (articleObj.content) {
+        // HTML etiketlerini temizle ve ilk 200 karakteri al
+        const textContent = articleObj.content.replace(/<[^>]*>/g, "").trim();
+        articleObj.excerpt =
+          textContent.length > 200
+            ? textContent.substring(0, 200) + "..."
+            : textContent;
+      } else {
+        articleObj.excerpt = "";
+      }
+      // Boş string image'ı null'a çevir
+      if (articleObj.image === "" || !articleObj.image) {
+        articleObj.image = null;
+      }
+      // Tam içeriği kaldır
+      delete articleObj.content;
+      return articleObj;
+    });
+
+    res.json({
+      articles: articlesWithExcerpt,
+      count: articlesWithExcerpt.length,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // @desc    Public - Tek makale getir (slug veya id ile)
 // @route   GET /api/articles/:slugOrId
 // @access  Public
@@ -928,6 +978,7 @@ module.exports = {
   deleteArticle,
   updateArticleStatus,
   getPublicArticles,
+  getLatestArticles,
   getPublicArticle,
   getArticlesByCategory,
   getArticlesByCategorySlug,

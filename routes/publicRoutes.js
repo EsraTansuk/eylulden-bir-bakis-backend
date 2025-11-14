@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getPublicArticles,
+  getLatestArticles,
   getPublicArticle,
   getArticlesByCategory,
   getArticlesByCategorySlug,
@@ -20,6 +21,7 @@ const {
 // Public makale endpoint'leri (JWT gerekmez)
 // ÖNEMLİ: Daha spesifik route'lar önce gelmeli
 router.get('/articles/popular', getPopularArticles);
+router.get('/articles/latest', getLatestArticles);
 router.get('/articles/category/:categoryId', getArticlesByCategory);
 router.get('/articles', getPublicArticles);
 // ÖNEMLİ: Beğeni endpoint'leri slug'dan önce gelmeli
