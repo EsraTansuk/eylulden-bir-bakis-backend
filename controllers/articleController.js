@@ -6,6 +6,26 @@ const ArticleLike = require("../models/ArticleLike");
 const fs = require("fs");
 const path = require("path");
 
+// Resim path'ini tam URL'ye çevir
+const getImageUrl = (imagePath) => {
+  if (!imagePath || imagePath === "" || imagePath === null) {
+    return null;
+  }
+  
+  // Eğer zaten tam URL ise (http:// veya https:// ile başlıyorsa) olduğu gibi döndür
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // Backend URL'ini al (environment variable'dan veya default)
+  const backendUrl = process.env.BACKEND_URL || process.env.API_URL || `http://localhost:${process.env.PORT || 5000}`;
+  
+  // Relative path'i tam URL'ye çevir
+  // Eğer path zaten /uploads/ ile başlıyorsa direkt ekle, değilse ekle
+  const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+  return `${backendUrl}${cleanPath}`;
+};
+
 // @desc    Tüm makaleleri getir
 // @route   GET /api/admin/articles
 // @access  Private (JWT)
@@ -432,9 +452,11 @@ const getPublicArticles = async (req, res) => {
       } else {
         articleObj.excerpt = "";
       }
-      // Boş string image'ı null'a çevir
+      // Boş string image'ı null'a çevir ve tam URL'ye çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
+      } else {
+        articleObj.image = getImageUrl(articleObj.image);
       }
       // Tam içeriği kaldır
       delete articleObj.content;
@@ -486,9 +508,11 @@ const getLatestArticles = async (req, res) => {
       } else {
         articleObj.excerpt = "";
       }
-      // Boş string image'ı null'a çevir
+      // Boş string image'ı null'a çevir ve tam URL'ye çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
+      } else {
+        articleObj.image = getImageUrl(articleObj.image);
       }
       // Tam içeriği kaldır
       delete articleObj.content;
@@ -544,10 +568,12 @@ const getPublicArticle = async (req, res) => {
     article.views += 1;
     await article.save();
 
-    // Boş string image'ı null'a çevir
+    // Boş string image'ı null'a çevir ve tam URL'ye çevir
     const articleObj = article.toObject();
     if (articleObj.image === "" || !articleObj.image) {
       articleObj.image = null;
+    } else {
+      articleObj.image = getImageUrl(articleObj.image);
     }
 
     res.json(articleObj);
@@ -613,9 +639,11 @@ const getArticlesByCategory = async (req, res) => {
       } else {
         articleObj.excerpt = "";
       }
-      // Boş string image'ı null'a çevir
+      // Boş string image'ı null'a çevir ve tam URL'ye çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
+      } else {
+        articleObj.image = getImageUrl(articleObj.image);
       }
       // Tam içeriği kaldır
       delete articleObj.content;
@@ -727,9 +755,11 @@ const getArticlesByCategorySlug = async (req, res) => {
       } else {
         articleObj.excerpt = "";
       }
-      // Boş string image'ı null'a çevir
+      // Boş string image'ı null'a çevir ve tam URL'ye çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
+      } else {
+        articleObj.image = getImageUrl(articleObj.image);
       }
       // Tam içeriği kaldır
       delete articleObj.content;
@@ -968,9 +998,11 @@ const getPopularArticles = async (req, res) => {
         articleObj.excerpt = "";
       }
       
-      // Boş string image'ı null'a çevir
+      // Boş string image'ı null'a çevir ve tam URL'ye çevir
       if (articleObj.image === "" || !articleObj.image) {
         articleObj.image = null;
+      } else {
+        articleObj.image = getImageUrl(articleObj.image);
       }
       
       // Tam içeriği kaldır (performans için)
